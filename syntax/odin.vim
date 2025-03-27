@@ -1,13 +1,11 @@
-vim9script
-
-# Vim indent plugin file
-# Language: Odin
-# Maintainer: Maxim Kim <habamax@gmail.com>
-# Website: https://github.com/habamax/vim-odin
-# Last Change: 2025-03-15
+" Vim indent plugin file
+" Language: Odin
+" Maintainer: Maxim Kim <habamax@gmail.com>
+" Website: https://github.com/habamax/vim-odin
+" Last Change: 2025-03-15
 
 if exists("b:current_syntax")
-  finish
+    finish
 endif
 
 syntax keyword odinKeyword using transmute cast auto_cast distinct opaque where dynamic
@@ -65,13 +63,13 @@ syntax region odinChar start=+'+ skip=+\\\\\|\\'+ end=+'+
 syntax region odinString start=+"+ skip=+\\\\\|\\'+ end=+"+ contains=odinEscape
 syntax match odinEscape display contained /\\\([nrt\\'"]\|x\x\{2}\)/
 
-#syntax match odinProcedure "\v<\w*>(\s*::\s*proc)@="
+"syntax match odinProcedure "\v<\w*>(\s*::\s*proc)@="
 
 syntax match odinAttribute "@\ze\<\w\+\>" display
 syntax region odinAttribute
-      \ matchgroup=odinAttribute
-      \ start="@\ze(" end="\ze)"
-      \ transparent oneline
+        \ matchgroup=odinAttribute
+        \ start="@\ze(" end="\ze)"
+        \ transparent oneline
 
 syntax match odinInteger "\-\?\<\d\+\>" display
 syntax match odinFloat "\-\?\<[0-9][0-9_]*\%(\.[0-9][0-9_]*\)\%([eE][+-]\=[0-9_]\+\)\=" display
@@ -122,4 +120,4 @@ highlight def link odinOct           Number
 highlight def link odinBin           Number
 highlight def link odinDoz           Number
 
-b:current_syntax = "odin"
+let b:current_syntax = "odin"
