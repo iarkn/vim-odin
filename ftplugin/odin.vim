@@ -10,7 +10,7 @@ endif
 
 let b:did_ftplugin = 1
 
-compiler odin_build
+compiler odin
 
 let b:undo_ftplugin = 'setlocal commentstring<
         \| setlocal comments<

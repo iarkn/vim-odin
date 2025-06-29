@@ -11,5 +11,4 @@ if exists(':CompilerSet') != 2
     command -nargs=* CompilerSet setlocal <args>
 endif
 
-CompilerSet makeprg=odin\ $*
-CompilerSet errorformat=%f(%l:%c)\ %m
+CompilerSet errorformat=%f\\(%l:%c)\ %m
