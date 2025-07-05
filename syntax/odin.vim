@@ -52,45 +52,49 @@ hi def link odinType Type
 
 " Built-in procedures and procedure groups. See <https://pkg.odin-lang.org/base/builtin>.
 if s:HighlightBuiltinProcs()
-    syntax keyword odinBuiltin len cap size_of align_of offset_of offset_of_selector offset_of_member
-    syntax keyword odinBuiltin offset_of_by_string type_of type_info_of typeid_of swizzle complex quaternion
-    syntax keyword odinBuiltin real imag jmag kmag conj expand_values min max abs clamp soa_zip soa_unzip
-    syntax keyword odinBuiltin raw_data
+    syntax keyword odinBuiltin
+            \ len cap size_of align_of offset_of offset_of_selector offset_of_member
+            \ offset_of_by_string type_of type_info_of typeid_of swizzle complex quaternion
+            \ real imag jmag kmag conj expand_values min max abs clamp soa_zip soa_unzip
+            \ raw_data
+            \ containedin=odinBuiltinProc contained
+    hi def link odinBuiltin Function
 endif
 
-hi def link odinBuiltin Function
-
 if s:HighlightBuiltinRuntimeProcs()
-    syntax keyword odinBuiltinRuntime container_of init_global_temporary_allocator copy_slice copy_from_string
-    syntax keyword odinBuiltinRuntime unordered_remove ordered_remove remove_range pop pop_safe pop_front
-    syntax keyword odinBuiltinRuntime pop_front_safe delete_string delete_cstring delete_dynamic_array delete_slice
-    syntax keyword odinBuiltinRuntime delete_map new new_clone make_slice make_dynamic_array make_dynamic_array_len
-    syntax keyword odinBuiltinRuntime make_dynamic_array_len_cap make_map make_map_cap make_multi_pointer clear_map
-    syntax keyword odinBuiltinRuntime reserve_map shrink_map delete_key append_elem non_zero_append_elem append_elems
-    syntax keyword odinBuiltinRuntime non_zero_append_elems append_elem_string non_zero_append_elem_string
-    syntax keyword odinBuiltinRuntime append_string append_nothing inject_at_elem inject_at_elems inject_at_elem_string
-    syntax keyword odinBuiltinRuntime assign_at_elem assign_at_elems assign_at_elem_string clear_dynamic_array
-    syntax keyword odinBuiltinRuntime reserve_dynamic_array non_zero_reserve_dynamic_array resize_dynamic_array
-    syntax keyword odinBuiltinRuntime non_zero_resize_dynamic_array map_insert map_upsert map_entry card assert
-    syntax keyword odinBuiltinRuntime raw_soa_footer_slice ensure raw_soa_footer_dynamic_array panic make_soa_aligned
-    syntax keyword odinBuiltinRuntime make_soa_slice unimplemented make_soa_dynamic_array assert_contextless
-    syntax keyword odinBuiltinRuntime make_soa_dynamic_array_len ensure_contextless make_soa_dynamic_array_len_cap
-    syntax keyword odinBuiltinRuntime panic_contextless unimplemented_contextless resize_soa non_zero_resize_soa
-    syntax keyword odinBuiltinRuntime reserve_soa non_zero_reserve_soa append_soa_elem non_zero_append_soa_elem
-    syntax keyword odinBuiltinRuntime append_soa_elems non_zero_append_soa_elems unordered_remove_soa
-    syntax keyword odinBuiltinRuntime ordered_remove_soa
-
-    syntax keyword odinBuiltinRuntime copy clear reserve non_zero_reserve resize non_zero_resize
-    syntax keyword odinBuiltinRuntime shrink free free_all delete make append non_zero_append inject_at assign_at
-    syntax keyword odinBuiltinRuntime make_soa append_soa delete_soa clear_soa
-
+    syntax keyword odinBuiltinRuntime
+            \ container_of init_global_temporary_allocator copy_slice copy_from_string
+            \ unordered_remove ordered_remove remove_range pop pop_safe pop_front
+            \ pop_front_safe delete_string delete_cstring delete_dynamic_array delete_slice
+            \ delete_map new new_clone make_slice make_dynamic_array make_dynamic_array_len
+            \ make_dynamic_array_len_cap make_map make_map_cap make_multi_pointer clear_map
+            \ reserve_map shrink_map delete_key append_elem non_zero_append_elem append_elems
+            \ non_zero_append_elems append_elem_string non_zero_append_elem_string
+            \ append_string append_nothing inject_at_elem inject_at_elems inject_at_elem_string
+            \ assign_at_elem assign_at_elems assign_at_elem_string clear_dynamic_array
+            \ reserve_dynamic_array non_zero_reserve_dynamic_array resize_dynamic_array
+            \ non_zero_resize_dynamic_array map_insert map_upsert map_entry card assert
+            \ raw_soa_footer_slice ensure raw_soa_footer_dynamic_array panic make_soa_aligned
+            \ make_soa_slice unimplemented make_soa_dynamic_array assert_contextless
+            \ make_soa_dynamic_array_len ensure_contextless make_soa_dynamic_array_len_cap
+            \ panic_contextless unimplemented_contextless resize_soa non_zero_resize_soa
+            \ reserve_soa non_zero_reserve_soa append_soa_elem non_zero_append_soa_elem
+            \ append_soa_elems non_zero_append_soa_elems unordered_remove_soa
+            \ ordered_remove_soa
+            \ copy clear reserve non_zero_reserve resize non_zero_resize
+            \ shrink free free_all delete make append non_zero_append inject_at assign_at
+            \ make_soa append_soa delete_soa clear_soa
+            \ containedin=odinBuiltinProc contained
     hi def link odinBuiltinRuntime odinBuiltin
 endif
 
-syntax match odinTodo "TODO" contained
-syntax match odinTodo "XXX" contained
+syntax match odinBuiltinProc "\w\+\ze("
+
+syntax match odinTodo "TODO"  contained
+syntax match odinTodo "NOTE"  contained
+syntax match odinTodo "HACK"  contained
 syntax match odinTodo "FIXME" contained
-syntax match odinTodo "HACK" contained
+syntax match odinTodo "XXX"   contained
 hi def link odinTodo Todo
 
 syntax region odinRawString start=+`+ end=+`+
@@ -134,11 +138,11 @@ hi def link odinNull Constant
 syntax match odinUninitialized "---"
 hi def link odinUninitialized Constant
 
-syntax region odinFileTag start=/#+/ end=/$/
-syntax match odinTag "#\<\w\+\>" display
+syntax region odinBuildTag start=/#+/ end=/$/
+syntax match odinDirective "#\<\w\+\>" display
 
-hi def link odinFileTag PreProc
-hi def link odinTag     PreProc
+hi def link odinBuildTag  PreProc
+hi def link odinDirective PreProc
 
 syntax region odinLineComment start=/\/\// end=/$/  contains=@Spell,odinTodo
 syntax region odinBlockComment start=/\/\*/ end=/\*\// contains=@Spell,odinTodo,odinBlockComment
