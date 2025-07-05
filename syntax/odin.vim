@@ -1,4 +1,4 @@
-" Vim syntax plugin file
+" Vim syntax file
 " Language: Odin
 " Maintainer: iarkn
 " Website: https://github.com/iarkn/vim-odin

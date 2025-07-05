@@ -4,7 +4,7 @@ vim9script
 # Language: Odin
 # Maintainer: iarkn
 # Website: https://github.com/iarkn/vim-odin
-# Last Change: 2025-06-29
+# Last Change: 2025-07-01
 
 if exists('b:did_indent')
     finish
@@ -12,17 +12,13 @@ endif
 
 b:did_indent = 1
 
-b:undo_indent = 'setlocal autoindent< indentkeys< indentexpr<'
-
 setlocal autoindent
 setlocal indentkeys=0{,0},0),0],:,!^F,o,O,e
 setlocal indentexpr=GetOdinIndent(v:lnum)
 
-var matchpairs = {'}': '{', ')': '(', '\]': '\['}
+b:undo_indent = 'setlocal autoindent< indentkeys< indentexpr<'
 
-def IsComment(lnum: number, line: string): bool
-    return line =~ '^\s*/[/\*]' || synIDattr(synID(lnum, 1, 0), 'name') =~? 'Comment'
-enddef
+var matchpairs = {'}': '{', ')': '(', '\]': '\['}
 
 def GetPrevLnum(lnum: number): number
     var plnum = lnum - 1
@@ -30,9 +26,7 @@ def GetPrevLnum(lnum: number): number
     while plnum > 1
         plnum = prevnonblank(plnum)
         pline = getline(plnum)
-        if IsComment(plnum, pline)
-            plnum -= 1
-        elseif pline =~ '\*/\s*$'
+        if pline =~ '\*/\s*$'
             var comment_depth = 0
             while plnum > 1
                 pline = getline(plnum)
@@ -43,6 +37,8 @@ def GetPrevLnum(lnum: number): number
                 endif
                 plnum -= 1
             endwhile
+        elseif pline =~ '^\s*/[/\*]' # || synIDattr(synID(plnum, 1, 0), 'name') =~? 'Comment'
+            plnum -= 1
         else
             break
         endif
@@ -50,38 +46,50 @@ def GetPrevLnum(lnum: number): number
     return plnum
 enddef
 
-def TrimComment(lnum: number, line: string): string
-    if IsComment(lnum, line)
-        return ""
+def TrimComment(lnum: number, line: string, check_block = true): string
+    var comment_pattern = '^\s*//'
+    if check_block
+        comment_pattern = '^\s*//\|^\s*/\*'
     endif
-    var len = strcharlen(line)
-    var min = 1
-    var max = len
-    var idx = max
-    while 1
-        if synIDattr(synID(lnum, idx, 0), 'name') !~? 'Comment'
-            if idx == len
-                # This line does not end with a comment.
-                break
-            endif
-            min = idx
-            idx += (max - idx) / 2
-        else
-            if idx == 0 || synIDattr(synID(lnum, idx - 1, 0), 'name') !~? 'Comment'
-                return strcharpart(line, 0, idx - 1)
-            endif
-            max = idx
-            idx -= (idx - min) / 2
+
+    var comment_match = matchstr(line, comment_pattern)
+    if comment_match != ''
+        var comment_match_off = strlen(comment_match) - 3
+        if comment_match_off <= 0
+            return ''
         endif
+        return line[: comment_match_off]
+    endif
+
+    var len = strlen(line)
+    if synIDattr(synID(lnum, len, 0), 'name') !~? 'Comment'
+        # Skip lines not ending with a comment.
+        return line
+    endif
+
+    if check_block
+        if synIDattr(synID(lnum, 1, 0), 'name') ==# 'odinBlockComment'
+            return ''
+        endif
+    endif
+
+    var idx = len - 1
+    while idx >= 0
+        if idx - 1 >= 0 && line[idx - 1] == '/' && (line[idx] == '/' || line[idx] == '*')
+            if synIDattr(synID(lnum, idx - 1, 0), 'name') !~? 'Comment'
+                return line[: idx - 2]
+            endif
+        endif
+        idx -= 1
     endwhile
     return line
 enddef
 
-def GetLine(lnum: number): string
-    return TrimComment(lnum, getline(lnum))
+def GetLine(lnum: number, check_block = true): string
+    return TrimComment(lnum, getline(lnum), check_block)
 enddef
 
-def FindMatchIndent(lnum: number, pindent: number, pattern: string, range: number = 20): number
+def FindMatchIndent(lnum: number, pindent: number, pattern: string, range: number = 10): number
     for mlnum in range(lnum, lnum - range, -1)
         if mlnum < 1
             break
@@ -99,15 +107,12 @@ enddef
 def GetOdinIndent(lnum: number): number
     var line = getline(lnum)
     var indent = indent(lnum)
-    if line =~ '^\s*/\*' || synIDattr(synID(lnum, 1, 0), 'name') =~# 'odinBlockComment'
+    if line =~ '^\s*/\*\|^\s*\*/' || synIDattr(synID(lnum, 1, 0), 'name') =~# 'odinBlockComment'
         # Block comments are not modified.
         return indent
     endif
 
-    line = TrimComment(lnum, line)
-    if line == ""
-        return indent
-    endif
+    line = TrimComment(lnum, line, false)
 
     var plnum = GetPrevLnum(lnum)
     var pline = GetLine(plnum)
@@ -115,13 +120,15 @@ def GetOdinIndent(lnum: number): number
     indent = pindent
 
     if line =~ '^\s*[})\]]'
-        var col = strcharlen(matchstr(line, '^\s*[})\]]'))
+        call cursor(lnum, 1)
+
+        var col = strlen(matchstr(line, '^\s*[})\]]'))
         var pend = line[col - 1]
         var pstart = matchpairs[pend]
 
         var skip = 'synIDattr(synID(line("."), col("."), 0), "name") =~? "String\\|Comment"'
         var mlnum = searchpairpos(pstart, '', pend, 'bnW', skip)[0]
-        var mline = GetLine(mlnum)
+        var mline = GetLine(mlnum, false)
         var mindent = indent(mlnum)
 
         # Align closing bracket with where clause.
@@ -151,10 +158,11 @@ def GetOdinIndent(lnum: number): number
     elseif pline =~# '^\s*case\>.*:\s*$'
         # Indent after case label.
         return indent + shiftwidth()
-    elseif pline =~# '^\s*case.*,\s*$'
+    elseif pline =~# '^\s*case\>.*,\s*$'
         # Align continuation line for case label.
         return strdisplaywidth(matchstr(pline, '^\s*case\s*'))
     elseif pline =~ '\S\s*:\s*$'
+        # Indent after end of multi-line case label.
         var mindent = FindMatchIndent(plnum - 1, pindent, '^\s*case\>.*,\s*$')
         if mindent >= 0
             return mindent + shiftwidth()

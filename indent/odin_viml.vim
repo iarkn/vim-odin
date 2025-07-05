@@ -2,7 +2,7 @@
 " Language: Odin
 " Maintainer: iarkn
 " Website: https://github.com/iarkn/vim-odin
-" Last Change: 2025-06-29
+" Last Change: 2025-07-01
 
 if exists('b:did_indent')
     finish
@@ -10,17 +10,13 @@ endif
 
 let b:did_indent = 1
 
-let b:undo_indent = 'setlocal autoindent< indentkeys< indentexpr<'
-
 setlocal autoindent
 setlocal indentkeys=0{,0},0),0],:,!^F,o,O,e
 setlocal indentexpr=GetOdinIndent(v:lnum)
 
-let s:matchpairs = {'}': '{', ')': '(', '\]': '\['}
+let b:undo_indent = 'setlocal autoindent< indentkeys< indentexpr<'
 
-function! s:IsComment(lnum, line) abort
-    return a:line =~ '^\s*/[/\*]' || synIDattr(synID(a:lnum, 1, 0), 'name') =~? 'Comment'
-endfunction
+let s:matchpairs = {'}': '{', ')': '(', '\]': '\['}
 
 function! s:GetPrevLnum(lnum) abort
     let l:plnum = a:lnum - 1
@@ -28,9 +24,7 @@ function! s:GetPrevLnum(lnum) abort
     while l:plnum > 1
         let l:plnum = prevnonblank(l:plnum)
         let l:pline = getline(l:plnum)
-        if s:IsComment(l:plnum, l:pline)
-            let l:plnum -= 1
-        elseif l:pline =~ '\*/\s*$'
+        if l:pline =~ '\*/\s*$'
             let l:comment_depth = 0
             while l:plnum > 1
                 let l:pline = getline(l:plnum)
@@ -41,6 +35,8 @@ function! s:GetPrevLnum(lnum) abort
                 endif
                 let l:plnum -= 1
             endwhile
+        elseif l:pline =~ '^\s*/[/\*]' " || synIDattr(synID(l:plnum, 1, 0), 'name') =~? 'Comment'
+            let l:plnum -= 1
         else
             break
         endif
@@ -48,38 +44,50 @@ function! s:GetPrevLnum(lnum) abort
     return l:plnum
 endfunction
 
-function! s:TrimComment(lnum, line) abort
-    if s:IsComment(a:lnum, a:line)
-        return ""
+function! s:TrimComment(lnum, line, check_block = 1) abort
+    let l:comment_pattern = '^\s*//'
+    if a:check_block == 1
+        let l:comment_pattern = '^\s*//\|^\s*/\*'
     endif
-    let l:len = strcharlen(a:line)
-    let l:min = 1
-    let l:max = l:len
-    let l:idx = l:max
-    while 1
-        if synIDattr(synID(a:lnum, l:idx, 0), 'name') !~? 'Comment'
-            if l:idx == l:len
-                " This line does not end with a comment.
-                break
-            endif
-            let l:min = l:idx
-            let l:idx += (l:max - l:idx) / 2
-        else
-            if l:idx == 0 || synIDattr(synID(a:lnum, l:idx - 1, 0), 'name') !~? 'Comment'
-                return strcharpart(a:line, 0, l:idx - 1)
-            endif
-            let l:max = l:idx
-            let l:idx -= (l:idx - l:min) / 2
+
+    let l:comment_match = matchstr(a:line, l:comment_pattern)
+    if l:comment_match != ''
+        let l:comment_match_off = strlen(l:comment_match) - 3
+        if l:comment_match_off <= 0
+            return ''
         endif
+        return a:line[: l:comment_match_off]
+    endif
+
+    let l:len = strlen(a:line)
+    if synIDattr(synID(a:lnum, l:len, 0), 'name') !~? 'Comment'
+        " Skip lines not ending with a comment.
+        return a:line
+    endif
+
+    if a:check_block == 1
+        if synIDattr(synID(a:lnum, 1, 0), 'name') ==# 'odinBlockComment'
+            return ''
+        endif
+    endif
+
+    let l:idx = l:len - 1
+    while l:idx >= 0
+        if l:idx - 1 >= 0 && a:line[l:idx - 1] == '/' && (a:line[l:idx] == '/' || a:line[l:idx] == '*')
+            if synIDattr(synID(a:lnum, l:idx - 1, 0), 'name') !~? 'Comment'
+                return a:line[: l:idx - 2]
+            endif
+        endif
+        let l:idx -= 1
     endwhile
     return a:line
 endfunction
 
-function! s:GetLine(lnum) abort
-    return s:TrimComment(a:lnum, getline(a:lnum))
+function! s:GetLine(lnum, check_block = 1) abort
+    return s:TrimComment(a:lnum, getline(a:lnum), a:check_block)
 endfunction
 
-function! s:FindMatchIndent(lnum, pindent, pattern, range = 20) abort
+function! s:FindMatchIndent(lnum, pindent, pattern, range = 10) abort
     for mlnum in range(a:lnum, a:lnum - a:range, -1)
         if mlnum < 1
             break
@@ -97,15 +105,12 @@ endfunction
 function! GetOdinIndent(lnum) abort
     let l:line = getline(a:lnum)
     let l:indent = indent(a:lnum)
-    if l:line =~ '^\s*/\*' || synIDattr(synID(a:lnum, 1, 0), 'name') =~# 'odinBlockComment'
+    if l:line =~ '^\s*/\*\|^\s*\*/' || synIDattr(synID(a:lnum, 1, 0), 'name') =~# 'odinBlockComment'
         " Block comments are not modified.
         return l:indent
     endif
 
-    let l:line = s:TrimComment(a:lnum, l:line)
-    if l:line == ""
-        return l:indent
-    endif
+    let l:line = s:TrimComment(a:lnum, l:line, 0)
 
     let l:plnum = s:GetPrevLnum(a:lnum)
     let l:pline = s:GetLine(l:plnum)
@@ -113,13 +118,15 @@ function! GetOdinIndent(lnum) abort
     let l:indent = l:pindent
 
     if l:line =~ '^\s*[})\]]'
-        let l:col = strcharlen(matchstr(l:line, '^\s*[})\]]'))
+        call cursor(a:lnum, 1)
+
+        let l:col = strlen(matchstr(l:line, '^\s*[})\]]'))
         let l:pend = l:line[l:col - 1]
         let l:pstart = s:matchpairs[l:pend]
 
         let l:skip = 'synIDattr(synID(line("."), col("."), 0), "name") =~? "String\\|Comment"'
         let l:mlnum = searchpairpos(l:pstart, '', l:pend, 'bnW', skip)[0]
-        let l:mline = s:GetLine(l:mlnum)
+        let l:mline = s:GetLine(l:mlnum, 0)
         let l:mindent = indent(l:mlnum)
 
         " Align closing bracket with where clause.
@@ -149,10 +156,11 @@ function! GetOdinIndent(lnum) abort
     elseif l:pline =~# '^\s*case\>.*:\s*$'
         " Indent after case label.
         return l:indent + shiftwidth()
-    elseif l:pline =~# '^\s*case.*,\s*$'
+    elseif l:pline =~# '^\s*case\>.*,\s*$'
         " Align continuation line for case label.
         return strdisplaywidth(matchstr(l:pline, '^\s*case\s*'))
     elseif l:pline =~ '\S\s*:\s*$'
+        " Indent after end of multi-line case label.
         let l:mindent = s:FindMatchIndent(l:plnum - 1, l:pindent, '^\s*case\>.*,\s*$')
         if l:mindent >= 0
             return l:mindent + shiftwidth()
